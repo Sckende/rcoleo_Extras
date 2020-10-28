@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+/Tests_injections/data
+/Tests_injections/extdata
+/Tests_injections/Igismap
