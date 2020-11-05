@@ -7,7 +7,8 @@ camp_zoopl <- read_delim("C:/Users/HP_9470m/Desktop/rcoleo_Extras/Tests_injectio
 setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
 
 # LINUX
-camp_zoopl <- read_delim("/home/claire/Bureau/rcoleo_Extras/Tests_injections/Test_injection_campagnes/Campagne_zoopl_denombrement.csv", ";")
+setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+camp_zoopl <- read_delim("data/Campagne_zoopl_denombrement.csv", ";")
 
 
 #### Test pour vérifier l'existence des cellules dans COLEO ####
@@ -64,43 +65,43 @@ unique(camp_zoopl$no_de_reference_du_site) %in% unique(sites$site_code)
 # notes           / **** INDIQUER LE NOM DU SITE DANS LES NOTES ***
 
 # Subset de données contenant les sites non présent dans COLEO
-camp_zoopl2 <- camp_zoopl[!camp_zoopl$no_de_reference_du_site %in% sites$site_code,]
+#camp_zoopl2 <- camp_zoopl[!camp_zoopl$no_de_reference_du_site %in% sites$site_code,]
 
 # On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
 # ATTENTION, indiquer le nom du site dans le champs "notes" de COLEO
-inj_zoop <- dplyr::select(camp_zoopl2, cell_code=no_de_reference_de_la_cellule, site_code=no_de_reference_du_site, type=type_milieu, opened_at=date_debut, lat=latitude, lon=longitude, notes=nom_lac)
+# inj_zoop <- dplyr::select(camp_zoopl2, cell_code=no_de_reference_de_la_cellule, site_code=no_de_reference_du_site, type=type_milieu, opened_at=date_debut, lat=latitude, lon=longitude, notes=nom_lac)
 
 # Récupération des cells id
-inj_zoop <- dplyr::left_join(inj_zoop, cells[, c(1,3)], by = "cell_code")
-names(inj_zoop)[8] <- "cell_id"
+# inj_zoop <- dplyr::left_join(inj_zoop, cells[, c(1,3)], by = "cell_code")
+# names(inj_zoop)[8] <- "cell_id"
 
 # On garde une ligne unique par nouveau site
-inj_zoop <- inj_zoop[!duplicated(inj_zoop),]
+#inj_zoop <- inj_zoop[!duplicated(inj_zoop),]
 
 # Transformer en liste pour injection
-sites_ls <- apply(inj_zoop,1,as.list)
-str(sites_ls)
+#sites_ls <- apply(inj_zoop,1,as.list)
+#str(sites_ls)
 
 # Creer le champs geom de COLEO en utilisant les variables lat & lon
-geom <- apply(inj_zoop,1, function(x){
- if(!any(is.na(x["lat"]),is.na(x["lon"]))){
-   return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
- } else {
-   return(NA)
- }})
+#geom <- apply(inj_zoop,1, function(x){
+ # if(!any(is.na(x["lat"]),is.na(x["lon"]))){
+ #   return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
+ # } else {
+ #   return(NA)
+ # }})
 
-crs_ls <- list(type="name",properties=list(name="EPSG:4326"))
+#crs_ls <- list(type="name",properties=list(name="EPSG:4326"))
 
 # Fusionner les deux listes (geomations + sites)
-for(i in 1:length(sites_ls)){
- sites_ls[[i]]$geom <- geom[i][[1]]
- if(is.list(sites_ls[[i]]$geom)){
-   sites_ls[[i]]$geom$crs <- list(type="name",properties=list(name="EPSG:4326"))
- }
-}
+# for(i in 1:length(sites_ls)){
+#  sites_ls[[i]]$geom <- geom[i][[1]]
+#  if(is.list(sites_ls[[i]]$geom)){
+#    sites_ls[[i]]$geom$crs <- list(type="name",properties=list(name="EPSG:4326"))
+#  }
+# }
 
 
-sites_ls # ok pour un ou plusieurs sites
+#sites_ls # ok pour un ou plusieurs sites
 
 #### ---------- Nouvelle fonction pour remplacer POST_SITES() ---------- ####
 
@@ -113,7 +114,6 @@ postpost_sites <- function (data)
   #endpoint <- endpoints()$sites
 
    for (i in 1:length(data)) {
-    #data[[i]]$cell_id <- as.data.frame(get_cells(data[[i]]$cell_id))$id
    responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
    if(responses[[i]]$response$status_code == 201){
      status_code[i] <- TRUE
@@ -126,6 +126,7 @@ postpost_sites <- function (data)
    print("Good job ! Toutes les insertions ont été crées dans COLEO")
  }else{
    print("Oups... un problème est survenu")
+   print(status_code)
  }
  return(responses)
 
@@ -146,6 +147,9 @@ postpost_sites <- function (data)
 # On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
 inj_camp_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, closed_at=date_fin, technicien_1, technicien_2)
 
+# On garde une ligne unique par nouvelle campagne
+inj_camp_zoop <- inj_camp_zoop[!duplicated(inj_camp_zoop),]
+
 # On récupère le site_id nécessaire à l'injection
 sites <- rcoleo::get_sites()
 sites <- do.call("rbind", sites[[1]]$body)
@@ -161,8 +165,8 @@ for(i in 1:length(inj_camp_zoop$site_code)){
 tech
 inj_camp_zoop$technicians <- tech
 
-# Création du type de campagnes - zooplanctons
-inj_camp_zoop$type <- "Zooplancton"
+# Création du type de campagnes - zooplanctons - ATTENTION - Vérifier l'appellation du type de campagne - 'végétation', 'végétation_transect', 'sol', 'acoustique', 'phénologie', 'mammifères', 'papilionidés', 'odonates', 'insectes_sol', 'ADNe','zooplancton', 'sol','décomposition_sol','température_eau', 'température_sol', 'marais_profondeur_température'
+inj_camp_zoop$type <- "zooplancton"
 
 head(inj_camp_zoop)
 
@@ -178,21 +182,16 @@ endpoint <- "/campaigns"
 postpost_campaigns <- function (data)
 {
   responses <- list()
-  status_code <- vector(mode = "logical", length = length(data))
+  status_code <- NULL
   class(responses) <- "coleoPostResp"
-  #endpoint <- endpoints()$sites
+#  endpoint <- endpoints()$sites
   
   for (i in 1:length(data)) {
-    #data[[i]]$cell_id <- as.data.frame(get_cells(data[[i]]$cell_id))$id
     responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
-    if(responses[[i]]$response$status_code == 201){
-      status_code[i] <- TRUE
-    }else{
-      status_code[[i]] <- FALSE
-    }
+    status_code <- c(status_code, responses[[i]]$response$status_code)
   }
   
-  if(all(status_code == TRUE)){
+  if(all(status_code == 201)){
     print("Good job ! Toutes les insertions ont été crées dans COLEO")
   }else{
     print("Oups... un problème est survenu")
@@ -202,7 +201,40 @@ postpost_campaigns <- function (data)
   
 }
 
+#COLEO_camp_inj <- postpost_campaigns(camp_ls) # Fonctionnel
+# str(COLEO_camp_inj, max.level = 3)
+# COLEO_camp_inj[[1]]
 
-COLEO_camp_inj <- postpost_campaigns(camp_ls) # Non fonctionnel
-str(COLEO_camp_inj, max.level = 3)
-COLEO_camp_inj[[1]]
+
+#### Variables tables "landmarks" ####
+# campaign_id / doit matcher avec site_code/site_id & opened_at
+# geom
+
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
+inj_land_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, lat=latitude, lon = longitude)
+
+# On récupère les site_id
+inj_land_zoop <- dplyr::left_join(inj_land_zoop, sites[, c(1, 4)], by = "site_code")
+names(inj_land_zoop)[5] <- "site_id"
+
+# On récupère les campaign_id
+camp <- rcoleo::get_campaigns()
+camp <- do.call("rbind", camp[[1]]$body)
+
+inj_land_zoop <- dplyr::left_join(inj_land_zoop, camp[, c(1, 2, 5)], by = c("site_id", "opened_at"))
+
+# On garde une ligne par repère (c'est à dire par campagne)
+inj_land_zoop <- inj_land_zoop[!duplicated(inj_land_zoop),]
+
+# Transformer en liste pour injection
+land_ls <- apply(inj_land_zoop,1,as.list)
+str(land_ls)
+
+
+# Creer le champs geom de COLEO en utilisant les variables lat & lon
+#geom <- apply(inj_zoop,1, function(x){
+# if(!any(is.na(x["lat"]),is.na(x["lon"]))){
+#   return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
+# } else {
+#   return(NA)
+# }})
