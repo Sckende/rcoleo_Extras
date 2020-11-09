@@ -2,6 +2,8 @@
 rm(list = ls())
 
 library(readr)
+
+#--------------------------------------------#
 # WINDOWS
 camp_zoopl <- read_delim("C:/Users/HP_9470m/Desktop/rcoleo_Extras/Tests_injections/Campagne_zoopl_denombrement.csv", ";")
 setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
@@ -10,11 +12,21 @@ setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_inject
 setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
 camp_zoopl <- read_delim("data/Campagne_zoopl_denombrement.csv", ";")
 
-
-#### Test pour vérifier l'existence des cellules dans COLEO ####
+# Acquisition cellules COLEO
 cells <- rcoleo::get_cells()
 cells <- do.call("rbind", cells[[1]]$body)
+# Acquisition sites COLEO
+sites <- rcoleo::get_sites()
+sites <- do.call("rbind", sites[[1]]$body)
+# Acquisition campagnes COLEO
+camp <- rcoleo::get_campaigns()
+camp <- do.call("rbind", camp[[1]]$body)
+# Acquisition observations COLEO
+library(plyr)
+obs <- rcoleo::get_gen("/observations")
+obs <- do.call("rbind.fill", obs[[1]])
 
+#### Test pour vérifier l'existence des cellules dans COLEO ####
 unique(camp_zoopl$no_de_reference_de_la_cellule) %in% unique(cells$cell_code)
 # ==> nécessité de création d'une cellule "124_93"
 
@@ -45,9 +57,6 @@ unique(camp_zoopl$no_de_reference_de_la_cellule) %in% unique(cells$cell_code)
 #resp_cells <- rcoleo::post_gen("/cells", cells_ls) # FONCTIONNE 
 
 #### Test pour vérifier l'existence des sites dans COLEO ####
-sites <- rcoleo::get_sites()
-sites <- do.call("rbind", sites[[1]]$body)
-
 # test pour vérifier l'existence des codes de sites dans COLEO
 unique(camp_zoopl$no_de_reference_du_site) %in% unique(sites$site_code)
 
@@ -151,8 +160,6 @@ inj_camp_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, op
 inj_camp_zoop <- inj_camp_zoop[!duplicated(inj_camp_zoop),]
 
 # On récupère le site_id nécessaire à l'injection
-sites <- rcoleo::get_sites()
-sites <- do.call("rbind", sites[[1]]$body)
 
 inj_camp_zoop <- dplyr::left_join(inj_camp_zoop, sites[, c(1,4)], by = "site_code") 
 names(inj_camp_zoop)[6] <- "site_id"
@@ -218,11 +225,9 @@ inj_land_zoop <- dplyr::left_join(inj_land_zoop, sites[, c(1, 4)], by = "site_co
 names(inj_land_zoop)[5] <- "site_id"
 
 # On récupère les campaign_id
-camp <- rcoleo::get_campaigns()
-camp <- do.call("rbind", camp[[1]]$body)
-
+inj_land_zoop$opened_at <- as.character(inj_land_zoop$opened_at)
 inj_land_zoop <- dplyr::left_join(inj_land_zoop, camp[, c(1, 2, 5)], by = c("site_id", "opened_at"))
-
+names(inj_land_zoop)[6] <- "campaign_id"
 # On garde une ligne par repère (c'est à dire par campagne)
 inj_land_zoop <- inj_land_zoop[!duplicated(inj_land_zoop),]
 
@@ -232,9 +237,193 @@ str(land_ls)
 
 
 # Creer le champs geom de COLEO en utilisant les variables lat & lon
-#geom <- apply(inj_zoop,1, function(x){
-# if(!any(is.na(x["lat"]),is.na(x["lon"]))){
-#   return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
-# } else {
-#   return(NA)
-# }})
+geom <- apply(inj_land_zoop,1, function(x){
+if(!any(is.na(x["lat"]),is.na(x["lon"]))){
+  return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
+} else {
+  return(NA)
+}})
+
+# Fusionner les deux listes (geomations + sites)
+for(i in 1:length(land_ls)){
+ land_ls[[i]]$geom <- geom[i][[1]]
+ if(is.list(land_ls[[i]]$geom)){
+   land_ls[[i]]$geom$crs <- list(type="name",properties=list(name="EPSG:4326"))
+ }
+}
+
+#### ---------- Nouvelle fonction pour remplacer POST_LANDMARKS() ---------- ####
+
+endpoint <- "/landmarks"
+postpost_landmarks <- function (data)
+{
+  responses <- list()
+  status_code <- NULL
+  class(responses) <- "coleoPostResp"
+  #  endpoint <- endpoints()$landmarks
+  
+  for (i in 1:length(data)) {
+    responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
+    status_code <- c(status_code, responses[[i]]$response$status_code)
+  }
+  
+  if(all(status_code == 201)){
+    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+  }else{
+    print("Oups... un problème est survenu")
+    print(status_code)
+  }
+  return(responses)
+  
+}
+
+COLEO_land_inj <- postpost_landmarks(land_ls) # Fonctionnel
+
+#### Variables tables "observations" ####
+# ---------- obligatoires
+# date_obs / date_debut
+# is_valid / par défaut = 1
+# campaign_id / récupération avec site_id et opened_at(=date_obs)
+# campaign_info / ?
+# ---------- facultatifs
+# time_obs
+# stratum
+# axis
+# distance
+# distance_unit
+# depth / Profondeur_m
+# sample_id
+# thermograph_id
+# notes / Date_denombrement + Taxonomiste
+
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
+inj_obs_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, depth = Profondeur_m)
+inj_obs_zoop$is_valid <- 1
+inj_obs_zoop$notes <- paste0(camp_zoopl$Taxonomiste, "Date_denombrement", camp_zoopl$Date_denombrement, sep = "-")
+
+# On récupère les site_id
+inj_obs_zoop <- dplyr::left_join(inj_obs_zoop, sites[, c(1, 4)], by = "site_code")
+names(inj_obs_zoop)[6] <- "site_id"
+
+# On récupère les campaign_id
+inj_obs_zoop$opened_at <- as.character(inj_obs_zoop$opened_at)
+inj_obs_zoop <- dplyr::left_join(inj_obs_zoop, camp[, c(1, 2, 5)], by = c("site_id", "opened_at"))
+names(inj_obs_zoop)[7] <- "campaign_id"
+
+# Modification du nom pour la date d'observation
+names(inj_obs_zoop)[2] <- "date_obs"
+
+# On conserve les lignes uniques
+inj_obs_zoop <- inj_obs_zoop[!duplicated(inj_obs_zoop),]
+
+# Transformer en liste pour injection
+obs_ls <- apply(inj_obs_zoop,1,as.list)
+
+#### ---------- Nouvelle fonction pour remplacer POST_OBSERVATIONS() ---------- ####
+endpoint <- "/observations"
+postpost_observations <- function (data)
+{
+  responses <- list()
+  status_code <- NULL
+  class(responses) <- "coleoPostResp"
+  #  endpoint <- endpoints()$observations
+  
+  for (i in 1:length(data)) {
+    responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
+    status_code <- c(status_code, responses[[i]]$response$status_code)
+  }
+  
+  if(all(status_code == 201)){
+    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+  }else{
+    print("Oups... un problème est survenu")
+    print(status_code)
+  }
+  return(responses)
+  
+}
+
+COLEO_obs_inj <- postpost_observations(obs_ls) # Fonctionnel
+
+#### Variables tables "ref_species" ####
+# name
+# vernacular_fr
+# rank
+# category
+# tsn
+# vascan_id
+# bryoquel_id
+
+# exemples
+species <- rcoleo::get_species()
+species <- do.call("rbind", species[[1]]$body)
+
+# Vérification si présence des espèces à insérer dans la table ref_species de COLEO
+unique(camp_zoopl$nom_scientifique) %in% unique(species$name)
+
+# Insertion rapide des espèces non présentes
+new_sp <- as.data.frame(unique(camp_zoopl$nom_scientifique))
+names(new_sp) <- "name"
+
+new_sp_ls <- apply(new_sp, 1, as.list)
+#
+COLEO_new_sp_ls <- rcoleo::post_species(new_sp_ls)
+
+#### Variables tables "attributes" ####
+rcoleo::get_gen("/attributes")
+
+# Vérifier que les attributs existent
+#### Variables tables "obs_species" ####
+# -------- obligatoires
+# taxa_name / nom_scientifique
+# variable / "abondance"
+# observation_id / à récupérer avec site_id --> site_code --> campaign_id + opened_at
+# -------- facultative
+# value / abondance
+
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
+inj_data_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, taxa_name = nom_scientifique, value = abondance)
+inj_data_zoop$variable <- "abondance"
+
+# On récupère les site_id
+inj_data_zoop <- dplyr::left_join(inj_data_zoop, sites[, c(1, 4)], by = "site_code")
+names(inj_data_zoop)[6] <- "site_id"
+
+# On récupère les campaign_id
+inj_data_zoop$opened_at <- as.character(inj_data_zoop$opened_at)
+inj_data_zoop <- dplyr::left_join(inj_data_zoop, camp[, c(1, 2, 5)], by = c("site_id", "opened_at"))
+names(inj_data_zoop)[7] <- "campaign_id"
+
+# On récupère les observation_id
+names(inj_data_zoop)[2] <- "date_obs"
+inj_data_zoop <- dplyr::left_join(inj_data_zoop, obs[, c(1, 2, 12)], by = c("campaign_id", "date_obs"))
+names(inj_data_zoop)[8] <- "observation_id"
+
+# Transformer en liste pour injection
+data_ls <- apply(inj_data_zoop,1,as.list)
+
+#### ---------- Nouvelle fonction pour remplacer POST_OBSERVATIONS() ---------- ####
+endpoint <- "/obs_species"
+postpost_obs_species <- function (data)
+{
+  responses <- list()
+  status_code <- NULL
+  class(responses) <- "coleoPostResp"
+  #  endpoint <- endpoints()$obs_species
+  
+  for (i in 1:length(data)) {
+    responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
+    status_code <- c(status_code, responses[[i]]$response$status_code)
+  }
+  
+  if(all(status_code == 201)){
+    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+  }else{
+    print("Oups... un problème est survenu")
+    print(status_code)
+  }
+  return(responses)
+  
+}
+
+COLEO_data_inj <- postpost_obs_species(data_ls) # Fonctionnel
