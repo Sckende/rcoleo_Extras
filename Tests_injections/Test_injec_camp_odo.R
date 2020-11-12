@@ -1,4 +1,4 @@
-#### Test injection des campagnes pour zooplancton - dénombrement ####
+#### Test injection des campagnes pour odonates ####
 rm(list = ls())
 
 #library(readr)
@@ -6,32 +6,49 @@ rm(list = ls())
 #--------------------------------------------#
 # WINDOWS
 setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
-camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/rcoleo_Extras/Tests_injections/Campagne_odonate.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
+camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/data/Campagne_odonate.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
 
 # LINUX
 setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
 camp_odo <- read_delim("data/Campagne_odonate.csv", ";", fileEncoding="UTF-8")
-camp_odo <- read.csv("data/Campagne_odonate.csv", header = TRUE, sep = ',', stringsAsFactors = FALSE, encoding = "UTF-8")
 
-# Acquisition cellules COLEO
+#### ----- Infos déjà présentes dans Coléo ----- ####
+# Acquisition cellules Coléo
 cells <- rcoleo::get_cells()
 cells <- do.call("rbind", cells[[1]]$body)
-# Acquisition sites COLEO
+# Acquisition sites Coléo
 sites <- rcoleo::get_sites()
 sites <- do.call("rbind", sites[[1]]$body)
-# Acquisition campagnes COLEO
+# Acquisition campagnes Coléo
 camp <- rcoleo::get_campaigns()
 camp <- do.call("rbind", camp[[1]]$body)
-# Acquisition observations COLEO
+# Acquisition observations Coléo
 library(plyr)
 obs <- rcoleo::get_gen("/observations")
 obs <- do.call("rbind.fill", obs[[1]])
+# Acquisition des espèces dans Coléo
+species <- rcoleo::get_species()
+species <- do.call("rbind", species[[1]]$body)
 
-#### Test pour vérifier l'existence des cellules dans COLEO ####
+#### ----- Nettoyage des données ----- ####
+summary(camp_odo)
+table(camp_odo$nom_scientifique, useNA = "always")
+table(camp_odo$nom_commun, useNA = "always")  
+  
+camp_odo[is.na(camp_odo$nom_commun) & is.na(camp_odo$nom_scientifique),]
+camp_odo[is.na(camp_odo$nom_scientifique),]
+
+camp_odo[is.na(camp_odo$abondance),]
+
+# ==> retrait des lignes 50, 51 & 619
+# Vérification si présence des espèces à insérer dans la table ref_species de Coléo
+unique(camp_zoopl$nom_scientifique) %in% unique(species$name)
+
+#### Test pour vérifier l'existence des cellules dans Coléo ####
 unique(camp_odo$no_de_reference_de_la_cellule) %in% unique(cells$cell_code)
 # ==> nécessité de création d'une cellule "124_93"
 
-#### ---------- Création des cellules manquantes dans COLEO ---------- ####
+#### ---------- Création des cellules manquantes dans Coléo ---------- ####
 #shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/rcoleo_Extras/Tests_injections/Test_injections_cellules/extdata/shp",layer="Cellule_terrain_2016-2020")
 
 #cell_code <- "124_93"
@@ -53,16 +70,16 @@ unique(camp_odo$no_de_reference_de_la_cellule) %in% unique(cells$cell_code)
 # Check for the JSON format - Car API très sensible à la présence de brackets !
 #jsonlite::toJSON(cells_ls)
 
-# Envoyer la nouvelle cellule vers COLEO
+# Envoyer la nouvelle cellule vers Coléo
 #resp_cells <- post_cells(cells_ls) # Ne fonctionne pas
 #resp_cells <- rcoleo::post_gen("/cells", cells_ls) # FONCTIONNE
 
-#### Test pour vérifier l'existence des sites dans COLEO ####
-# test pour vérifier l'existence des codes de sites dans COLEO
+#### Test pour vérifier l'existence des sites dans Coléo ####
+# test pour vérifier l'existence des codes de sites dans Coléo
 unique(camp_zoopl$no_de_reference_du_site) %in% unique(sites$site_code)
 
 
-#### ---------- Création des sites manquants dans COLEO ---------- ####
+#### ---------- Création des sites manquants dans Coléo ---------- ####
 #### Préparation des données à injecter ####
 # Variables tables "sites" #
 # Table name  / import DF name
@@ -74,11 +91,11 @@ unique(camp_zoopl$no_de_reference_du_site) %in% unique(sites$site_code)
 # geom             / association latitude-longitude des lacs, ici identiques à lat/long du site
 # notes           / **** INDIQUER LE NOM DU SITE DANS LES NOTES ***
 
-# Subset de données contenant les sites non présent dans COLEO
+# Subset de données contenant les sites non présent dans Coléo
 #camp_zoopl2 <- camp_zoopl[!camp_zoopl$no_de_reference_du_site %in% sites$site_code,]
 
-# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
-# ATTENTION, indiquer le nom du site dans le champs "notes" de COLEO
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
+# ATTENTION, indiquer le nom du site dans le champs "notes" de Coléo
 # inj_zoop <- dplyr::select(camp_zoopl2, cell_code=no_de_reference_de_la_cellule, site_code=no_de_reference_du_site, type=type_milieu, opened_at=date_debut, lat=latitude, lon=longitude, notes=nom_lac)
 
 # Récupération des cells id
@@ -92,7 +109,7 @@ unique(camp_zoopl$no_de_reference_du_site) %in% unique(sites$site_code)
 #sites_ls <- apply(inj_zoop,1,as.list)
 #str(sites_ls)
 
-# Creer le champs geom de COLEO en utilisant les variables lat & lon
+# Creer le champs geom de Coléo en utilisant les variables lat & lon
 #geom <- apply(inj_zoop,1, function(x){
 # if(!any(is.na(x["lat"]),is.na(x["lon"]))){
 #   return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
@@ -133,7 +150,7 @@ postpost_sites <- function (data)
   }
 
   if(all(status_code == TRUE)){
-    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+    print("Good job ! Toutes les insertions ont été crées dans Coléo")
   }else{
     print("Oups... un problème est survenu")
     print(status_code)
@@ -154,7 +171,7 @@ postpost_sites <- function (data)
 # closed_at    / "date_fin"
 # notes        / aucune
 
-# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
 inj_camp_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, closed_at=date_fin, technicien_1, technicien_2)
 
 # On garde une ligne unique par nouvelle campagne
@@ -200,7 +217,7 @@ postpost_campaigns <- function (data)
   }
 
   if(all(status_code == 201)){
-    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+    print("Good job ! Toutes les insertions ont été crées dans Coléo")
   }else{
     print("Oups... un problème est survenu")
     print(status_code)
@@ -218,7 +235,7 @@ postpost_campaigns <- function (data)
 # campaign_id / doit matcher avec site_code/site_id & opened_at
 # geom
 
-# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
 inj_land_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, lat=latitude, lon = longitude)
 
 # On récupère les site_id
@@ -237,7 +254,7 @@ land_ls <- apply(inj_land_zoop,1,as.list)
 str(land_ls)
 
 
-# Creer le champs geom de COLEO en utilisant les variables lat & lon
+# Creer le champs geom de Coléo en utilisant les variables lat & lon
 geom <- apply(inj_land_zoop,1, function(x){
   if(!any(is.na(x["lat"]),is.na(x["lon"]))){
     return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
@@ -269,7 +286,7 @@ postpost_landmarks <- function (data)
   }
 
   if(all(status_code == 201)){
-    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+    print("Good job ! Toutes les insertions ont été crées dans Coléo")
   }else{
     print("Oups... un problème est survenu")
     print(status_code)
@@ -297,7 +314,7 @@ COLEO_land_inj <- postpost_landmarks(land_ls) # Fonctionnel
 # thermograph_id
 # notes / Date_denombrement + Taxonomiste
 
-# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
 inj_obs_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, depth = Profondeur_m)
 inj_obs_zoop$is_valid <- 1
 inj_obs_zoop$notes <- paste0(camp_zoopl$Taxonomiste, "Date_denombrement", camp_zoopl$Date_denombrement, sep = "-")
@@ -335,7 +352,7 @@ postpost_observations <- function (data)
   }
 
   if(all(status_code == 201)){
-    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+    print("Good job ! Toutes les insertions ont été crées dans Coléo")
   }else{
     print("Oups... un problème est survenu")
     print(status_code)
@@ -345,30 +362,6 @@ postpost_observations <- function (data)
 }
 
 COLEO_obs_inj <- postpost_observations(obs_ls) # Fonctionnel
-
-#### Variables tables "ref_species" ####
-# name
-# vernacular_fr
-# rank
-# category
-# tsn
-# vascan_id
-# bryoquel_id
-
-# exemples
-species <- rcoleo::get_species()
-species <- do.call("rbind", species[[1]]$body)
-
-# Vérification si présence des espèces à insérer dans la table ref_species de COLEO
-unique(camp_zoopl$nom_scientifique) %in% unique(species$name)
-
-# Insertion rapide des espèces non présentes
-new_sp <- as.data.frame(unique(camp_zoopl$nom_scientifique))
-names(new_sp) <- "name"
-
-new_sp_ls <- apply(new_sp, 1, as.list)
-#
-COLEO_new_sp_ls <- rcoleo::post_species(new_sp_ls)
 
 #### Variables tables "attributes" ####
 rcoleo::get_gen("/attributes")
@@ -382,7 +375,7 @@ rcoleo::get_gen("/attributes")
 # -------- facultative
 # value / abondance
 
-# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de COLEO
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
 inj_data_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, taxa_name = nom_scientifique, value = abondance)
 inj_data_zoop$variable <- "abondance"
 
@@ -418,7 +411,7 @@ postpost_obs_species <- function (data)
   }
 
   if(all(status_code == 201)){
-    print("Good job ! Toutes les insertions ont été crées dans COLEO")
+    print("Good job ! Toutes les insertions ont été crées dans Coléo")
   }else{
     print("Oups... un problème est survenu")
     print(status_code)
