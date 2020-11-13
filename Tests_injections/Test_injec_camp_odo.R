@@ -1,16 +1,16 @@
 #### Test injection des campagnes pour odonates ####
 rm(list = ls())
 
-#library(readr)
+library(readr)
 
 #--------------------------------------------#
 # WINDOWS
-setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
-camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/data/Campagne_odonate.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
+# setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+# camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/data/Campagne_odonate.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
 
 # LINUX
 setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
-camp_odo <- read_delim("data/Campagne_odonate.csv", ";", fileEncoding="UTF-8")
+camp_odo <- read_delim("data/Campagne_odonate.csv", ",")
 
 #### ----- Infos déjà présentes dans Coléo ----- ####
 # Acquisition cellules Coléo
@@ -44,22 +44,27 @@ camp_odo[is.na(camp_odo$abondance),]
 
 # ==> retrait des lignes 50, 51 & 619
 
-camp_odo <- camp_odo[-c(50, 51, 619),]
+#camp_odo <- camp_odo[-c(50, 51, 619),]
+
+camp_odo <- camp_odo[-c(50, 51),]
 
 #### ---------- Test pour vérifier si présence des espèces à insérer dans la table ref_species de Coléo ---------- ####
-rcoleo::COLEO_comp(unique(camp_odo$nom_scientifique), unique(species$name))
+sp_manquante <- rcoleo::COLEO_comp(unique(camp_odo$nom_scientifique), unique(species$name))
 
 #### ---------- Test pour vérifier l'existence des cellules dans Coléo ---------- ####
-rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_de_la_cellule), unique(cells$cell_code))
+cell_manquante <- rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_de_la_cellule), unique(cells$cell_code))
 # ==> nécessité de création de 2 cellules "73_137" & "130_87"
 
 #### ---------- Création des cellules manquantes dans Coléo ---------- ####
 # Windows
-shp_cells <- rgdal::readOGR(dsn = "C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/extdata/shp", layer = "Cellule_terrain_2016-2020")
+#shp_cells <- rgdal::readOGR(dsn = "C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/extdata/shp", layer = "Cellule_terrain_2016-2020")
 # Linux
-shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/rcoleo_Extras/Tests_injections/Test_injections_cellules/extdata/shp",layer="Cellule_terrain_2016-2020")
+shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/extdata/shp",layer="Cellule_terrain_2016-2020")
 
-cell_code <- c("73_137", "130_87")
+cell_code <- cell_manquante
+#cell_code <- c("73_137", "130_87")
+# cell_code <- "73_137"
+# cell_code <- "130_87"
 # Extraction des données spécifiques à la cellule à partir du shapefile où il y a toutes les cellules
 shp_cells_list <- list()
 for (i in 1:length(cell_code)){
@@ -67,7 +72,7 @@ for (i in 1:length(cell_code)){
   # Création d'une liste avec les informations nécessaires
   cells_ls <- list()
   cells_ls$cell_code <- cell_code[i] # le code de la cellule
-  cells_ls$name <- shp_cells[shp_cells$IJ == cell_code[i] & !is.na(shp_cells$Nom),]@data$Nom # le nom de la cellule
+  cells_ls$name <- unique(shp_cells[shp_cells$IJ == cell_code[i] & !is.na(shp_cells$Nom),]@data$Nom) # le nom de la cellule
   
   if(identical(cells_ls$name, character(0))){
     cells_ls$name <- NULL
@@ -81,20 +86,18 @@ for (i in 1:length(cell_code)){
 }
 
 
-
-
 # Check for the JSON format - Car API très sensible à la présence de brackets !
-#jsonlite::toJSON(cells_ls)
+jsonlite::toJSON(shp_cells_list[[2]])
 
 # Envoyer la nouvelle cellule vers Coléo
-#resp_cells <- post_cells(cells_ls) # Ne fonctionne pas
-#resp_cells <- rcoleo::post_gen("/cells", cells_ls) # FONCTIONNE
+resp_cells <- rcoleo::post_cells(shp_cells_list) # Fonctionne
+
+#resp_cells <- rcoleo::post_gen("/cells", shp_cells_list[[2]]) # Fonctionne si envoyée une cellule par une cellule
 
 #### Test pour vérifier l'existence des sites dans Coléo ####
 # test pour vérifier l'existence des codes de sites dans Coléo
-rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_du_site), unique(sites$site_code))
-
-
+site_absent <- rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_du_site), unique(sites$site_code))
+site_absent
 #### ---------- Création des sites manquants dans Coléo ---------- ####
 #### Préparation des données à injecter ####
 # Variables tables "sites" #
@@ -108,11 +111,11 @@ rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_du_site), unique(sites$site_c
 # notes           / **** INDIQUER LE NOM DU SITE DANS LES NOTES ***
 
 # Subset de données contenant les sites non présent dans Coléo
-#camp_zoopl2 <- camp_zoopl[!camp_zoopl$no_de_reference_du_site %in% sites$site_code,]
+camp_odo_2 <- camp_odo[camp_odo$no_de_reference_du_site %in% site_absent,]
 
 # On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
 # ATTENTION, indiquer le nom du site dans le champs "notes" de Coléo
-# inj_zoop <- dplyr::select(camp_zoopl2, cell_code=no_de_reference_de_la_cellule, site_code=no_de_reference_du_site, type=type_milieu, opened_at=date_debut, lat=latitude, lon=longitude, notes=nom_lac)
+# ===> inj_zoop <- dplyr::select(camp_zoopl2, cell_code=no_de_reference_de_la_cellule, site_code=no_de_reference_du_site, type=type_milieu, opened_at=date_debut, lat=latitude, lon=longitude, notes=nom_lac)
 
 # Récupération des cells id
 # inj_zoop <- dplyr::left_join(inj_zoop, cells[, c(1,3)], by = "cell_code")

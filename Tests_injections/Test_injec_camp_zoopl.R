@@ -34,27 +34,29 @@ unique(camp_zoopl$no_de_reference_de_la_cellule) %in% unique(cells$cell_code)
 #shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/rcoleo_Extras/Tests_injections/Test_injections_cellules/extdata/shp",layer="Cellule_terrain_2016-2020")
 
 #cell_code <- "124_93"
+cell_code <- "73_137"
+cell_code <- "130_87"
 # Extraction des données spécifiques à la cellule à partir du shapefile où il y a toutes les cellules
-#shp <- shp_cells[shp_cells$IJ == cell_code ,]
+shp <- shp_cells[shp_cells$IJ == cell_code ,]
 # Création d'une liste avec les informations nécessaires
-#cells_ls <- list()
-#cells_ls$cell_code <- cell_code # le code de la cellule
-#cells_ls$name <- shp_cells[shp_cells$IJ == cell_code & !is.na(shp_cells$Nom),]@data$Nom # le nom de la cellule
+cells_ls <- list()
+cells_ls$cell_code <- cell_code # le code de la cellule
+cells_ls$name <- shp_cells[shp_cells$IJ == cell_code & !is.na(shp_cells$Nom),]@data$Nom # le nom de la cellule
 
-#if(identical(cells_ls$name,character(0))){
-#  cells_ls$name <- NULL
-#} # si pas de nom, retrait de ce niveau de liste
+if(identical(cells_ls$name,character(0))){
+ cells_ls$name <- NULL
+} # si pas de nom, retrait de ce niveau de liste
 # Création de l'objet spatial pour les coordonnées de la cellule
-#shp_sp <- as(shp, "SpatialPolygons")
-#cells_ls$geom <- geojsonio::geojson_list(shp)$features[[1]]$geometry # Caractéristiques de l'objet spatial
-#cells_ls$geom$crs <- list(type="name",properties=list(name="EPSG:4326")) # Add CRS fields
+shp_sp <- as(shp, "SpatialPolygons")
+cells_ls$geom <- geojsonio::geojson_list(shp)$features[[1]]$geometry # Caractéristiques de l'objet spatial
+cells_ls$geom$crs <- list(type="name",properties=list(name="EPSG:4326")) # Add CRS fields
 
 # Check for the JSON format - Car API très sensible à la présence de brackets !
-#jsonlite::toJSON(cells_ls)
+jsonlite::toJSON(cells_ls)
 
 # Envoyer la nouvelle cellule vers COLEO
-#resp_cells <- post_cells(cells_ls) # Ne fonctionne pas
-#resp_cells <- rcoleo::post_gen("/cells", cells_ls) # FONCTIONNE 
+#resp_cells <- rcoleo::post_cells(cells_ls) # Ne fonctionne pas
+resp_cells <- rcoleo::post_gen("/cells", cells_ls) # FONCTIONNE 
 
 #### Test pour vérifier l'existence des sites dans COLEO ####
 # test pour vérifier l'existence des codes de sites dans COLEO
