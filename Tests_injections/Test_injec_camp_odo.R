@@ -87,7 +87,7 @@ for (i in 1:length(cell_code)){
 
 
 # Check for the JSON format - Car API très sensible à la présence de brackets !
-jsonlite::toJSON(shp_cells_list[[2]])
+#jsonlite::toJSON(shp_cells_list[[2]])
 
 # Envoyer la nouvelle cellule vers Coléo
 resp_cells <- rcoleo::post_cells(shp_cells_list) # Fonctionne
