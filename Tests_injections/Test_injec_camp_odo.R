@@ -38,34 +38,50 @@ table(camp_odo$nom_commun, useNA = "always")
 camp_odo[is.na(camp_odo$nom_commun) & is.na(camp_odo$nom_scientifique),]
 camp_odo[is.na(camp_odo$nom_scientifique),]
 
+tail(camp_odo, 10)
+
 camp_odo[is.na(camp_odo$abondance),]
 
 # ==> retrait des lignes 50, 51 & 619
-# Vérification si présence des espèces à insérer dans la table ref_species de Coléo
-unique(camp_zoopl$nom_scientifique) %in% unique(species$name)
 
-#### Test pour vérifier l'existence des cellules dans Coléo ####
-unique(camp_odo$no_de_reference_de_la_cellule) %in% unique(cells$cell_code)
-# ==> nécessité de création d'une cellule "124_93"
+camp_odo <- camp_odo[-c(50, 51, 619),]
+
+#### ---------- Test pour vérifier si présence des espèces à insérer dans la table ref_species de Coléo ---------- ####
+rcoleo::COLEO_comp(unique(camp_odo$nom_scientifique), unique(species$name))
+
+#### ---------- Test pour vérifier l'existence des cellules dans Coléo ---------- ####
+rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_de_la_cellule), unique(cells$cell_code))
+# ==> nécessité de création de 2 cellules "73_137" & "130_87"
 
 #### ---------- Création des cellules manquantes dans Coléo ---------- ####
-#shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/rcoleo_Extras/Tests_injections/Test_injections_cellules/extdata/shp",layer="Cellule_terrain_2016-2020")
+# Windows
+shp_cells <- rgdal::readOGR(dsn = "C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/extdata/shp", layer = "Cellule_terrain_2016-2020")
+# Linux
+shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/rcoleo_Extras/Tests_injections/Test_injections_cellules/extdata/shp",layer="Cellule_terrain_2016-2020")
 
-#cell_code <- "124_93"
+cell_code <- c("73_137", "130_87")
 # Extraction des données spécifiques à la cellule à partir du shapefile où il y a toutes les cellules
-#shp <- shp_cells[shp_cells$IJ == cell_code ,]
-# Création d'une liste avec les informations nécessaires
-#cells_ls <- list()
-#cells_ls$cell_code <- cell_code # le code de la cellule
-#cells_ls$name <- shp_cells[shp_cells$IJ == cell_code & !is.na(shp_cells$Nom),]@data$Nom # le nom de la cellule
+shp_cells_list <- list()
+for (i in 1:length(cell_code)){
+  shp <- shp_cells[shp_cells$IJ == cell_code[i] ,]
+  # Création d'une liste avec les informations nécessaires
+  cells_ls <- list()
+  cells_ls$cell_code <- cell_code[i] # le code de la cellule
+  cells_ls$name <- shp_cells[shp_cells$IJ == cell_code[i] & !is.na(shp_cells$Nom),]@data$Nom # le nom de la cellule
+  
+  if(identical(cells_ls$name, character(0))){
+    cells_ls$name <- NULL
+  } # si pas de nom, retrait de ce niveau de liste
+  #Création de l'objet spatial pour les coordonnées de la cellule
+  shp_sp <- as(shp, "SpatialPolygons")
+  cells_ls$geom <- geojsonio::geojson_list(shp)$features[[1]]$geometry # Caractéristiques de l'objet spatial
+  cells_ls$geom$crs <- list(type="name",properties=list(name="EPSG:4326")) # Add CRS fields
+  
+  shp_cells_list[[i]] <- cells_ls
+}
 
-#if(identical(cells_ls$name,character(0))){
-#  cells_ls$name <- NULL
-#} # si pas de nom, retrait de ce niveau de liste
-# Création de l'objet spatial pour les coordonnées de la cellule
-#shp_sp <- as(shp, "SpatialPolygons")
-#cells_ls$geom <- geojsonio::geojson_list(shp)$features[[1]]$geometry # Caractéristiques de l'objet spatial
-#cells_ls$geom$crs <- list(type="name",properties=list(name="EPSG:4326")) # Add CRS fields
+
+
 
 # Check for the JSON format - Car API très sensible à la présence de brackets !
 #jsonlite::toJSON(cells_ls)
@@ -76,7 +92,7 @@ unique(camp_odo$no_de_reference_de_la_cellule) %in% unique(cells$cell_code)
 
 #### Test pour vérifier l'existence des sites dans Coléo ####
 # test pour vérifier l'existence des codes de sites dans Coléo
-unique(camp_zoopl$no_de_reference_du_site) %in% unique(sites$site_code)
+rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_du_site), unique(sites$site_code))
 
 
 #### ---------- Création des sites manquants dans Coléo ---------- ####
@@ -162,7 +178,7 @@ postpost_sites <- function (data)
 #COLEO_inj <- postpost_sites(sites_ls) # FONCTIONNE
 #COLEO_inj <- rcoleo::post_sites(sites_ls)
 
-#### Variables tables "campaigns" ####
+#### ---------- Variables tables "campaigns" ---------- ####
 # Table name  / import DF name
 # site_id      / à récupérer de get_sites() à partir de "no_de_reference_du_site" - OU À INTÉGRER AU FORMATAGE SI DÉJÀ EXISTANT (???)
 # type         / nom de la campagne, ici "zooplanctons"
