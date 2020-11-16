@@ -5,12 +5,12 @@ library(readr)
 
 #--------------------------------------------#
 # WINDOWS
-# setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
-# camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/data/Campagne_odonate.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
+setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/data/Campagne_odonate.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
 
 # LINUX
-setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
-camp_odo <- read_delim("data/Campagne_odonate.csv", ",")
+# setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+# camp_odo <- read_delim("data/Campagne_odonate.csv", ",")
 
 #### ----- Infos déjà présentes dans Coléo ----- ####
 # Acquisition cellules Coléo
@@ -42,17 +42,19 @@ tail(camp_odo, 10)
 
 camp_odo[is.na(camp_odo$abondance),]
 
-# ==> retrait des lignes 50, 51 & 619
+# Extra nettoyage
+camp_odo <- camp_odo[-c(50, 51),] 
 
-#camp_odo <- camp_odo[-c(50, 51, 619),]
+t <- table(camp_odo$type_milieu)
 
-camp_odo <- camp_odo[-c(50, 51),]
+camp_odo$type_milieu[camp_odo$type_milieu == names(t)[2]] <- "marais"
+camp_odo$type_milieu[camp_odo$type_milieu == names(t)[3] | camp_odo$type_milieu == names(t)[4]] <- "tourbière"
 
 #### ---------- Test pour vérifier si présence des espèces à insérer dans la table ref_species de Coléo ---------- ####
-sp_manquante <- rcoleo::COLEO_comp(unique(camp_odo$nom_scientifique), unique(species$name))
+sp_abs <- rcoleo::COLEO_comp(unique(camp_odo$nom_scientifique), unique(species$name))
 
 #### ---------- Test pour vérifier l'existence des cellules dans Coléo ---------- ####
-cell_manquante <- rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_de_la_cellule), unique(cells$cell_code))
+cell_abs <- rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_de_la_cellule), unique(cells$cell_code))
 # ==> nécessité de création de 2 cellules "73_137" & "130_87"
 
 #### ---------- Création des cellules manquantes dans Coléo ---------- ####
@@ -61,7 +63,7 @@ cell_manquante <- rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_de_la_cellu
 # Linux
 shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/extdata/shp",layer="Cellule_terrain_2016-2020")
 
-cell_code <- cell_manquante
+cell_code <- cell_abs
 #cell_code <- c("73_137", "130_87")
 # cell_code <- "73_137"
 # cell_code <- "130_87"
@@ -96,8 +98,9 @@ resp_cells <- rcoleo::post_cells(shp_cells_list) # Fonctionne
 
 #### Test pour vérifier l'existence des sites dans Coléo ####
 # test pour vérifier l'existence des codes de sites dans Coléo
-site_absent <- rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_du_site), unique(sites$site_code))
-site_absent
+site_abs <- rcoleo::COLEO_comp(unique(camp_odo$no_de_reference_du_site), unique(sites$site_code))
+site_abs
+
 #### ---------- Création des sites manquants dans Coléo ---------- ####
 #### Préparation des données à injecter ####
 # Variables tables "sites" #
@@ -105,81 +108,57 @@ site_absent
 # cell_id              /  recuperation avec get_cells
 # off_station_code_id / idem ?
 # site_code          / no_de_reference_du_site
-# type              / zooplanctons
+# type              / type de l'habitat ATTENTION, doit appartenir à la liste suivante : 'lac', 'rivière', 'forestier', 'marais', 'marais côtier', 'toundrique', 'tourbière'
 # opened_at        / date_debut
 # geom             / association latitude-longitude des lacs, ici identiques à lat/long du site
 # notes           / **** INDIQUER LE NOM DU SITE DANS LES NOTES ***
 
 # Subset de données contenant les sites non présent dans Coléo
-camp_odo_2 <- camp_odo[camp_odo$no_de_reference_du_site %in% site_absent,]
+camp_odo_2 <- camp_odo[camp_odo$no_de_reference_du_site %in% site_abs,]
 
 # On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
-# ATTENTION, indiquer le nom du site dans le champs "notes" de Coléo
-# ===> inj_zoop <- dplyr::select(camp_zoopl2, cell_code=no_de_reference_de_la_cellule, site_code=no_de_reference_du_site, type=type_milieu, opened_at=date_debut, lat=latitude, lon=longitude, notes=nom_lac)
+
+inj_odo <- dplyr::select(camp_odo_2,
+                         cell_code = no_de_reference_de_la_cellule,
+                         site_code = no_de_reference_du_site,
+                         type = type_milieu,
+                         opened_at = date_debut,
+                         lat = latitude,
+                         lon = longitude)
 
 # Récupération des cells id
-# inj_zoop <- dplyr::left_join(inj_zoop, cells[, c(1,3)], by = "cell_code")
-# names(inj_zoop)[8] <- "cell_id"
+inj_odo <- dplyr::left_join(inj_odo, cells[, c(1,3)], by = "cell_code")
+names(inj_odo)[7] <- "cell_id"
 
 # On garde une ligne unique par nouveau site
-#inj_zoop <- inj_zoop[!duplicated(inj_zoop),]
+inj_odo <- inj_odo[!duplicated(inj_odo),]
 
 # Transformer en liste pour injection
-#sites_ls <- apply(inj_zoop,1,as.list)
-#str(sites_ls)
+sites_ls <- apply(inj_odo, 1, as.list)
+str(sites_ls)
 
 # Creer le champs geom de Coléo en utilisant les variables lat & lon
-#geom <- apply(inj_zoop,1, function(x){
-# if(!any(is.na(x["lat"]),is.na(x["lon"]))){
-#   return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
-# } else {
-#   return(NA)
-# }})
+geom <- apply(inj_odo, 1, function(x){
+if(!any(is.na(x["lat"]), is.na(x["lon"]))){
+  return(geojsonio::geojson_list(as.numeric(c(x["lon"], x["lat"])))$features[[1]]$geometry)
+} else {
+  return(NA)
+}})
 
-#crs_ls <- list(type="name",properties=list(name="EPSG:4326"))
 
 # Fusionner les deux listes (geomations + sites)
-# for(i in 1:length(sites_ls)){
-#  sites_ls[[i]]$geom <- geom[i][[1]]
-#  if(is.list(sites_ls[[i]]$geom)){
-#    sites_ls[[i]]$geom$crs <- list(type="name",properties=list(name="EPSG:4326"))
-#  }
-# }
-
-
-#sites_ls # ok pour un ou plusieurs sites
-
-#### ---------- Nouvelle fonction pour remplacer POST_SITES() ---------- ####
-
-endpoint <- "/sites"
-postpost_sites <- function (data)
-{
-  responses <- list()
-  status_code <- vector(mode = "logical", length = length(data))
-  class(responses) <- "coleoPostResp"
-  #endpoint <- endpoints()$sites
-
-  for (i in 1:length(data)) {
-    responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
-    if(responses[[i]]$response$status_code == 201){
-      status_code[i] <- TRUE
-    }else{
-      status_code[[i]] <- FALSE
-    }
-  }
-
-  if(all(status_code == TRUE)){
-    print("Good job ! Toutes les insertions ont été crées dans Coléo")
-  }else{
-    print("Oups... un problème est survenu")
-    print(status_code)
-  }
-  return(responses)
-
+for(i in 1:length(sites_ls)){
+ sites_ls[[i]]$geom <- geom[i][[1]]
+ if(is.list(sites_ls[[i]]$geom)){
+   sites_ls[[i]]$geom$crs <- list(type = "name", properties = list(name = "EPSG:4326"))
+ }
 }
+
+
+sites_ls # ok pour un ou plusieurs sites
+
 #### ---------- Injection du/des nouveaux sites ---------- ####
-#COLEO_inj <- postpost_sites(sites_ls) # FONCTIONNE
-#COLEO_inj <- rcoleo::post_sites(sites_ls)
+COLEO_inj <- rcoleo::post_sites(sites_ls) 
 
 #### ---------- Variables tables "campaigns" ---------- ####
 # Table name  / import DF name
