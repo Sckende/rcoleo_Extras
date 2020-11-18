@@ -13,22 +13,22 @@ camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extr
 # camp_odo <- read_delim("data/Campagne_odonate.csv", ",")
 
 #### ----- Infos déjà présentes dans Coléo ----- ####
+library(plyr) # pour rbind.fill()
 # Acquisition cellules Coléo
 cells <- rcoleo::get_cells()
-cells <- do.call("rbind", cells[[1]]$body)
+cells <- do.call("rbind.fill", cells[[1]]$body)
 # Acquisition sites Coléo
 sites <- rcoleo::get_sites()
-sites <- do.call("rbind", sites[[1]]$body)
+sites <- do.call("rbind.fill", sites[[1]]$body)
 # Acquisition campagnes Coléo
 camp <- rcoleo::get_campaigns()
-camp <- do.call("rbind", camp[[1]]$body)
+camp <- do.call("rbind.fill", camp[[1]]$body)
 # Acquisition observations Coléo
-library(plyr)
 obs <- rcoleo::get_gen("/observations")
 obs <- do.call("rbind.fill", obs[[1]])
 # Acquisition des espèces dans Coléo
 species <- rcoleo::get_species()
-species <- do.call("rbind", species[[1]]$body)
+species <- do.call("rbind.fill", species[[1]]$body)
 
 #### ----- Nettoyage des données ----- ####
 summary(camp_odo)
@@ -229,7 +229,7 @@ COLEO_inj_camp <- rcoleo::post_campaigns(camp_ls) # Non fonctionnel
 # geom / utilisation de longitude et latitude
 
 
-# TABLE ENVIRONMENTS
+#### TABLE ENVIRONMENTS ####
 # campaign_id / doit matcher avec site_code/site_id, opened_at & type
 # wind / vent
 # sky / ciel
@@ -239,7 +239,8 @@ COLEO_inj_camp <- rcoleo::post_campaigns(camp_ls) # Non fonctionnel
 # samp_surf
 # samp_surf_unit
 
-camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/Campagne_odonate_V2.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE)
+#camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/Campagne_odonate_V2.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
+camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/Campagne_odonate_V3_slashes.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
 names(camp_odo)
 
 # On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
@@ -258,11 +259,10 @@ inj_land_odo <- dplyr::left_join(inj_land_odo, sites[, c(1, 4)], by = "site_code
 names(inj_land_odo)[9] <- "site_id"
 
 # On récupère les campaign_id
-coleo_odonate <- rcoleo::get_campaigns(type = "odonates")
-coleo_odonate <- do.call("rbind", coleo_odonate[[1]]$body)
+#coleo_odonate <- rcoleo::get_campaigns(type = "odonates")
+#coleo_odonate <- do.call("rbind", coleo_odonate[[1]]$body)
 
-#inj_land_zoop$opened_at <- as.character(inj_land_zoop$opened_at)
-inj_land_odo <- dplyr::left_join(inj_land_odo, coleo_odonate[, c("site_id", "opened_at", "type", "id")], by = c("site_id", "opened_at", "type"))
+inj_land_odo <- dplyr::left_join(inj_land_odo, camp[, c("site_id", "opened_at", "type", "id")], by = c("site_id", "opened_at", "type"))
 
 names(inj_land_odo)[10] <- "campaign_id"
 
@@ -296,45 +296,73 @@ for(i in 1:length(land_ls)){
 # Injection
 COLEO_land_inj <- rcoleo::post_landmarks(land_ls) # Fonctionnel
 
-
+#### TABLE ENVIRONMENT ####
 # Préparation injection table ENVIRONMENTS
 
-inj_env_odo_unik <- inj_land_odo_unik[, c("campaign_id", "wind", "sky", "temp_c", "lat", "lon")]
+inj_env_odo_unik <- inj_land_odo_unik[, c("campaign_id", "wind", "sky", "temp_c")]
 
 # Correction des entrées pour "sky" et "wind" - *** ATTENTION, corrections faites directement dans le .CSV ***
+# OPTIONNEL - pour ne pas réinsérer ce qui a fonctionné hier
 
+inj_env_odo_unik <- inj_env_odo_unik[inj_env_odo_unik$wind %in% c("légère brise (6 à 11 km/h)", "très légère brise (1 à 5 km/h)", "petite brise (12 à 19 km/h)" ) ,]
 
 # Transformer en liste pour injection
 env_ls <- apply(inj_env_odo_unik, 1, as.list)
 str(env_ls)
 
 
-# Creer le champs geom de Coléo en utilisant les variables lat & lon
-geom <- apply(inj_env_odo_unik, 1, function(x){
-  if(!any(is.na(x["lat"]),is.na(x["lon"]))){
-    return(geojsonio::geojson_list(as.numeric(c(x["lon"],x["lat"])))$features[[1]]$geometry)
-  } else {
-    return(NA)
-  }})
-
-# Fusionner les deux listes (geomations + sites)
-for(i in 1:length(env_ls)){
-  env_ls[[i]]$geom <- geom[i][[1]]
-  if(is.list(land_ls[[i]]$geom)){
-    env_ls[[i]]$geom$crs <- list(type="name",properties=list(name="EPSG:4326"))
-  }
-}
-
 # Injection
 COLEO_env_inj <- rcoleo::post_environments(env_ls)
+
+#### Variables table "efforts" ####
+# ---------- obligatoires
+# campaign_id
+# ---------- facultatifs
+# stratum
+# time_start
+# time_finish
+# samp_surf
+# samp_surf_unit
+# notes
+
+camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/Campagne_odonate_V3_slashes.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
+names(camp_odo)
+
+# On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
+inj <- dplyr::select(camp_odo,
+                     site_code = no_de_reference_du_site,
+                     opened_at = date_debut,
+                     time_start = heure_debut,
+                     time_finish = heure_fin)
+inj$type <- "odonates" 
+
+# On récupère les site_id
+inj <- dplyr::left_join(inj, sites[, c(1, 4)], by = "site_code")
+names(inj)[6] <- "site_id"
+
+# On récupère les campaign_id
+inj <- dplyr::left_join(inj, camp[, c("site_id", "opened_at", "type", "id")], by = c("site_id", "opened_at", "type"))
+
+names(inj)[7] <- "campaign_id"
+
+# On garde une ligne par campagne
+inj_unik <- inj[!duplicated(inj),]
+
+# Transformer en liste pour injection
+inj_ls <- apply(inj_unik, 1, as.list)
+str(inj_ls)
+
+# Injections
+
+COLEO_inj <- rcoleo::post_efforts(inj_ls) # ==> DONE !!!
 
 #### Variables tables "observations" ####
 # ---------- obligatoires
 # date_obs / date_debut
 # is_valid / par défaut = 1
-# campaign_id / récupération avec site_id et opened_at(=date_obs)
-# campaign_info / ?
+# campaign_id / récupération avec site_id, type et opened_at(=date_obs)
 # ---------- facultatifs
+# campaign_info / ?
 # time_obs
 # stratum
 # axis
@@ -345,59 +373,40 @@ COLEO_env_inj <- rcoleo::post_environments(env_ls)
 # thermograph_id
 # notes / Date_denombrement + Taxonomiste
 
+camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/Campagne_odonate_V3_slashes.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
+
 # On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
-inj_obs_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, depth = Profondeur_m)
-inj_obs_zoop$is_valid <- 1
-inj_obs_zoop$notes <- paste0(camp_zoopl$Taxonomiste, "Date_denombrement", camp_zoopl$Date_denombrement, sep = "-")
+inj_obs <- dplyr::select(camp_odo,
+                         site_code = no_de_reference_du_site,
+                         opened_at = date_debut)
+inj_obs$is_valid <- 1
+inj_obs$type <- "odonates"
 
 # On récupère les site_id
-inj_obs_zoop <- dplyr::left_join(inj_obs_zoop, sites[, c(1, 4)], by = "site_code")
-names(inj_obs_zoop)[6] <- "site_id"
+inj_obs <- dplyr::left_join(inj_obs, sites[, c(1, 4)], by = "site_code")
+names(inj_obs)[4] <- "site_id"
 
 # On récupère les campaign_id
-inj_obs_zoop$opened_at <- as.character(inj_obs_zoop$opened_at)
-inj_obs_zoop <- dplyr::left_join(inj_obs_zoop, camp[, c(1, 2, 5)], by = c("site_id", "opened_at"))
-names(inj_obs_zoop)[7] <- "campaign_id"
+inj_obs <- dplyr::left_join(inj_obs, camp[, c("id", "site_id", "opened_at", "type")], by = c("site_id", "opened_at", "type"))
+names(inj_obs)[6] <- "campaign_id"
 
 # Modification du nom pour la date d'observation
-names(inj_obs_zoop)[2] <- "date_obs"
+names(inj_obs)[2] <- "date_obs"
 
 # On conserve les lignes uniques
-inj_obs_zoop <- inj_obs_zoop[!duplicated(inj_obs_zoop),]
+inj_obs <- inj_obs[!duplicated(inj_obs),]
 
 # Transformer en liste pour injection
-obs_ls <- apply(inj_obs_zoop,1,as.list)
+obs_ls <- apply(inj_obs, 1, as.list)
 
-#### ---------- Nouvelle fonction pour remplacer POST_OBSERVATIONS() ---------- ####
-endpoint <- "/observations"
-postpost_observations <- function (data)
-{
-  responses <- list()
-  status_code <- NULL
-  class(responses) <- "coleoPostResp"
-  #  endpoint <- endpoints()$observations
-
-  for (i in 1:length(data)) {
-    responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
-    status_code <- c(status_code, responses[[i]]$response$status_code)
-  }
-
-  if(all(status_code == 201)){
-    print("Good job ! Toutes les insertions ont été crées dans Coléo")
-  }else{
-    print("Oups... un problème est survenu")
-    print(status_code)
-  }
-  return(responses)
-
-}
-
-COLEO_obs_inj <- postpost_observations(obs_ls) # Fonctionnel
+# Injections
+COLEO_obs_inj <- rcoleo::post_obs(obs_ls) # Fonctionnel
 
 #### Variables tables "attributes" ####
 rcoleo::get_gen("/attributes")
 
 # Vérifier que les attributs existent
+
 #### Variables tables "obs_species" ####
 # -------- obligatoires
 # taxa_name / nom_scientifique
@@ -407,51 +416,39 @@ rcoleo::get_gen("/attributes")
 # value / abondance
 
 # On séléctionne les champs d'interêts & on matche les noms de variables avec celles de Coléo
-inj_data_zoop <- dplyr::select(camp_zoopl, site_code=no_de_reference_du_site, opened_at=date_debut, taxa_name = nom_scientifique, value = abondance)
-inj_data_zoop$variable <- "abondance"
+inj_data <- dplyr::select(camp_odo,
+                          site_code = no_de_reference_du_site,
+                          opened_at = date_debut,
+                          taxa_name = nom_scientifique,
+                          value = abondance)
+inj_data$variable <- "abondance"
+inj_data$type <- "odonates"
 
 # On récupère les site_id
-inj_data_zoop <- dplyr::left_join(inj_data_zoop, sites[, c(1, 4)], by = "site_code")
-names(inj_data_zoop)[6] <- "site_id"
+inj_data <- dplyr::left_join(inj_data, sites[, c("id", "site_code")], by = "site_code")
+names(inj_data)[7] <- "site_id"
 
 # On récupère les campaign_id
-inj_data_zoop$opened_at <- as.character(inj_data_zoop$opened_at)
-inj_data_zoop <- dplyr::left_join(inj_data_zoop, camp[, c(1, 2, 5)], by = c("site_id", "opened_at"))
-names(inj_data_zoop)[7] <- "campaign_id"
+inj_data <- dplyr::left_join(inj_data,
+                             camp[, c("id", "site_id", "opened_at", "type")],
+                             by = c("site_id", "opened_at", "type"))
+names(inj_data)[8] <- "campaign_id"
 
 # On récupère les observation_id
-names(inj_data_zoop)[2] <- "date_obs"
-inj_data_zoop <- dplyr::left_join(inj_data_zoop, obs[, c(1, 2, 12)], by = c("campaign_id", "date_obs"))
-names(inj_data_zoop)[8] <- "observation_id"
+names(inj_data)[2] <- "date_obs"
+inj_data$date_obs <- inj_data$opened_at
+
+inj_data <- dplyr::left_join(inj_data,
+                             obs[, c("id", "campaign_id", "date_obs")],
+                             by = c("campaign_id", "date_obs"))
+
+names(inj_data)[length(inj_data)] <- "observation_id"
 
 # Transformer en liste pour injection
-data_ls <- apply(inj_data_zoop,1,as.list)
+data_ls <- apply(inj_data, 1, as.list)
 
-#### ---------- Nouvelle fonction pour remplacer POST_OBSERVATIONS() ---------- ####
-endpoint <- "/obs_species"
-postpost_obs_species <- function (data)
-{
-  responses <- list()
-  status_code <- NULL
-  class(responses) <- "coleoPostResp"
-  #  endpoint <- endpoints()$obs_species
-
-  for (i in 1:length(data)) {
-    responses[[i]] <- rcoleo::post_gen(endpoint, data[[i]])
-    status_code <- c(status_code, responses[[i]]$response$status_code)
-  }
-
-  if(all(status_code == 201)){
-    print("Good job ! Toutes les insertions ont été crées dans Coléo")
-  }else{
-    print("Oups... un problème est survenu")
-    print(status_code)
-  }
-  return(responses)
-
-}
-
-COLEO_data_inj <- postpost_obs_species(data_ls) # Fonctionnel
+# Injections
+COLEO_data_inj <- rcoleo::post_obs_species(data_ls) # ==> DONE !!!
 
 
 
