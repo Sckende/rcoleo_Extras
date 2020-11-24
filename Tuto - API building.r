@@ -90,24 +90,27 @@ library(rcoleo)
 setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
 
 # Informations initiales nécessaires
-path <- "/observations"
+path <- "/campaigns"
 bearer <- function() ifelse(file.exists(".httr-oauth"), as.character(readRDS(".httr-oauth")), NA)
 ua <- httr::user_agent("rcoleo")
 limit <- 100
 
 # Construction et envoi de la requete DELETE pour retirer des observations dupliquées
 
-# Pour ce cas, nécessité d'effacer 95 observations car dupliquées
-# check <- obs[obs$campaign_id %in% c(200,201,203,204,206,209),]
-for(i in check$id){
+# Pour ce cas, retrait des campagnes odonates
+# camp2 <- rcoleo::get_campaigns(type = "odonates")
+# camp2 <- do.call(rbind.fill, camp2[[1]]$body)
+
+for(i in camp2$id){
+  
   url <- httr::modify_url("https://coleo.biodiversite-quebec.ca", path = paste0("/api/v1",path, "/", i))
   
-  resp <- httr::DELETE(
-    url = url,
-    config = httr::add_headers("Content-type" = "application/json",
-                               Authorization = paste("Bearer", bearer()),
-                               Accept = "application/json"),
-    ua)  
+  resp <- httr::DELETE(url = url,
+                       config = httr::add_headers("Content-type" = "application/json",
+                                                  Authorization = paste("Bearer", bearer()),
+                                                  Accept = "application/json"),
+                       ua)  
+  
   print(resp$status_code)
 }
 
