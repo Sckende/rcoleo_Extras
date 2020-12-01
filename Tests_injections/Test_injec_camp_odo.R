@@ -6,7 +6,7 @@ library(readr)
 #--------------------------------------------#
 # WINDOWS
 setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
-camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/data/Campagne_odonate.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
+camp_odo <- read.csv("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/Campagne_odonate_V2.csv", header = TRUE, sep = ';', stringsAsFactors = FALSE, encoding = "UTF-8")
 
 # LINUX
 # setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
