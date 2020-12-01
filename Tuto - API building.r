@@ -87,7 +87,7 @@ jsonlite::toJSON(respR,
 #####################################
 
 library(rcoleo)
-setwd("/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
 
 # Informations initiales nécessaires
 path <- "/campaigns"
@@ -98,8 +98,8 @@ limit <- 100
 # Construction et envoi de la requete DELETE pour retirer des observations dupliquées
 
 # Pour ce cas, retrait des campagnes odonates
-# camp2 <- rcoleo::get_campaigns(type = "odonates")
-# camp2 <- do.call(rbind.fill, camp2[[1]]$body)
+ # camp2 <- rcoleo::get_campaigns(type = "odonates")
+ # camp2 <- do.call(plyr::rbind.fill, camp2[[1]]$body)
 
 for(i in camp2$id){
   
