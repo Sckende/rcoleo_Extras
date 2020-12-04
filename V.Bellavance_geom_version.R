@@ -20,7 +20,7 @@ shp$Nom <- shp$id # remplacement des noms par les ids
 shp <- geojsonsf::sf_geojson(shp) # conversion en geojson
 shp
 
-#geojsonio::geojson_write(shp, file = "cellsCoords2.geojson") # Exportation du geojson
+#geojsonio::geojson_write(shp, file = "cellsCoords3.geojson") # Exportation du geojson
 
 
 
