@@ -1,3 +1,29 @@
+#### Obtenir un geojson format à partir des shapefiles ####
+setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+cells <- rcoleo::get_cells()
+cells <- do.call(plyr::rbind.fill, cells[[1]]$body)
+
+campaigns <- rcoleo::get_campaigns()
+campaigns <- do.call(plyr::rbind.fill, campaigns[[1]]$body)
+cell_ids <- unique(campaigns$site.cell_id)
+
+cells <- cells[cells$id %in% cell_ids,]
+
+shp_cells <- rgdal::readOGR(dsn="./extdata/shp",
+                            layer="Cellule_terrain_2016-2020") # Ici le fichier shapefile est placé dans un dossier shp et on appelle tous les fichiers nommés "Cellule_terrain_2016_2020"
+
+# Obtention des informations pour un cellule contenues dans les shapefiles
+shp <- shp_cells[shp_cells$IJ %in% cells$cell_code ,] # class objet spatial sf
+shp <- sf::st_as_sf(shp) # conversion en objet spatial st
+shp <- dplyr::left_join(shp, cells[, c("id", "cell_code")], by = c("IJ" = "cell_code"))
+shp$Nom <- shp$id # remplacement des noms par les ids
+shp <- geojsonsf::sf_geojson(shp) # conversion en geojson
+shp
+
+#geojsonio::geojson_write(shp, file = "cellsCoords2.geojson") # Exportation du geojson
+
+
+
 ### Add spatial data ###
 geom <- sf::st_sfc(
   sf::st_point(c(obs[i, "lon"], obs[i, "lat"])), crs = obs[i, "srid"]
@@ -42,4 +68,6 @@ geom <- sf::st_sfc(poly)
 
 #polyCOORD <- sf::st_transform(poly2)
 
-geojsonio::geojson_list(poly2)[c("type", "coordinates")]
+poly2 <- geojsonio::geojson_list(poly)[c("type", "coordinates")]
+
+jsonlite::toJSON(poly2)
