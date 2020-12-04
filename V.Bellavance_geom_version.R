@@ -9,14 +9,14 @@ cell_ids <- unique(campaigns$site.cell_id)
 
 cells <- cells[cells$id %in% cell_ids,]
 
-shp_cells <- rgdal::readOGR(dsn="./extdata/shp",
+shp_cells <- rgdal::readOGR(dsn="/home/claire/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections/extdata/shp",
                             layer="Cellule_terrain_2016-2020") # Ici le fichier shapefile est placé dans un dossier shp et on appelle tous les fichiers nommés "Cellule_terrain_2016_2020"
 
 # Obtention des informations pour un cellule contenues dans les shapefiles
 shp <- shp_cells[shp_cells$IJ %in% cells$cell_code ,] # class objet spatial sf
 shp <- sf::st_as_sf(shp) # conversion en objet spatial st
 shp <- dplyr::left_join(shp, cells[, c("id", "cell_code")], by = c("IJ" = "cell_code"))
-shp$Nom <- shp$id # remplacement des noms par les ids
+shp$NOM <- shp$id # remplacement des noms par les ids
 shp <- geojsonsf::sf_geojson(shp) # conversion en geojson
 shp
 
