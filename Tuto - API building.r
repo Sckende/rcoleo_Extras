@@ -99,7 +99,7 @@ limit <- 100
 # Construction et envoi de la requete DELETE pour retirer des observations dupliquées
 
 # Pour ce cas, retrait des campagnes odonates
- # camp2 <- rcoleo::get_campaigns(type = "odonates")
+ # camp2 <- rcoleo::get_campaigns(type = "papilionidés")
  # camp2 <- do.call(plyr::rbind.fill, camp2[[1]]$body)
 
 for(i in camp2$id){
