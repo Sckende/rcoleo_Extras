@@ -87,11 +87,11 @@ jsonlite::toJSON(respR,
 #####################################
 
 library(rcoleo)
-#setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
 setwd("~/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
 
 # Informations initiales nécessaires
-path <- "/campaigns"
+path <- "/cells"
 bearer <- function() ifelse(file.exists(".httr-oauth"), as.character(readRDS(".httr-oauth")), NA)
 ua <- httr::user_agent("rcoleo")
 limit <- 100
@@ -108,8 +108,8 @@ limit <- 100
 # camp2 <- rcoleo::get_campaigns(type = "zooplancton")
 # camp2 <- do.call(plyr::rbind.fill, camp2[[1]]$body)
 
-for(i in camp2$id){
-  
+for(i in noID$id){
+
   url <- httr::modify_url("https://coleo.biodiversite-quebec.ca", path = paste0("/api/v1",path, "/", i))
   
   resp <- httr::DELETE(url = url,
@@ -121,3 +121,47 @@ for(i in camp2$id){
   print(resp$status_code)
 }
 
+#######################################
+#### Tests grandeur nature MODIFY ####
+#####################################
+
+library(rcoleo)
+setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+setwd("~/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+
+# Informations initiales nécessaires
+path <- "/cells"
+bearer <- function() ifelse(file.exists(".httr-oauth"), as.character(readRDS(".httr-oauth")), NA)
+ua <- httr::user_agent("rcoleo")
+limit <- 100
+
+# Modification du noms des cellules avec campagnes déjà insérées dans Coléo #
+# Mise à jour du 17 décembre 2020 
+setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Correction_nom_cellule")
+cell <- rcoleo::get_cells()
+cell <- do.call(plyr::rbind.fill, cell[[1]]$body)
+
+upD <- read.csv("./update_namecells_pre2020.csv",
+                sep = ";",
+                header = TRUE)
+#...#
+
+# Construction et envoi de la requete MODIFY pour pour rectifier le nom des cellules existantes
+
+# cellules dans coleo
+cell <- rcoleo::get_cells()
+cell <- do.call(plyr::rbind.fill, cell[[1]]$body)
+
+
+for(i in ){
+  
+  url <- httr::modify_url("https://coleo.biodiversite-quebec.ca", path = paste0("/api/v1",path, "/", i))
+  
+  resp <- httr::DELETE(url = url,
+                       config = httr::add_headers("Content-type" = "application/json",
+                                                  Authorization = paste("Bearer", bearer()),
+                                                  Accept = "application/json"),
+                       ua)  
+  
+  print(resp$status_code)
+}
