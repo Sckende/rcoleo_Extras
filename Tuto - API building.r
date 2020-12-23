@@ -123,60 +123,26 @@ for(i in noID$id){
   print(resp$status_code)
 }
 
-#######################################
-#### Tests grandeur nature MODIFY ####
-#####################################
-
-library(rcoleo)
-setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
-setwd("~/Bureau/PostDoc_COLEO/GitHub/rcoleo_Extras/Tests_injections")
+###############################################
+#### Tests pour la gestion du cache memory ####
+##############################################
+# Memory cache qui pose probleme lors de la mise a jour des requetes GET
 
 # Informations initiales nécessaires
-path <- "/cells"
-
-#####################################
-#### Tests grandeur nature MODIFY ou exploration du problème de NA pour la variable wind dans la table "/environment" ####
-#####################################
-library(rcoleo)
-#setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras")
-setwd("C:/Users/HP_9470m/Desktop/PostDoc_COLEO/GitHub/rcoleo_Extras/Correction_nom_cellule")
-
-# Informations initiales nécessaires
-path <- "/cells"
-
+path <- "/observations"
 bearer <- function() ifelse(file.exists(".httr-oauth"), as.character(readRDS(".httr-oauth")), NA)
 ua <- httr::user_agent("rcoleo")
 limit <- 100
 
-# Modification du noms des cellules avec campagnes déjà insérées dans Coléo #
-# Mise à jour du 17 décembre 2020 
+url <- httr::modify_url("https://coleo.biodiversite-quebec.ca", path = paste0("/api/v1",path))
 
-cell <- rcoleo::get_cells()
-cell <- do.call(plyr::rbind.fill, cell[[1]]$body)
+resp <- httpcache::GET(url = url,
+                     config = httr::add_headers("Content-type" = "application/json",
+                                                Authorization = paste("Bearer", bearer()),
+                                                Accept = "application/json"),
+                     ua)  
 
-upD <- read.csv("./update_namecells_pre2020.csv",
-                sep = ";",
-                header = TRUE)
-#...#
-
-# Construction et envoi de la requete MODIFY pour pour rectifier le nom des cellules existantes
-
-# cellules dans coleo
-cell <- rcoleo::get_cells()
-cell <- do.call(plyr::rbind.fill, cell[[1]]$body)
+print(resp$status_code)
 
 
-for(i in ){
-  
-  url <- httr::modify_url("https://coleo.biodiversite-quebec.ca", path = paste0("/api/v1",path, "/", i))
-  
-  resp <- httr::DELETE(url = url,
-                       config = httr::add_headers("Content-type" = "application/json",
-                                                  Authorization = paste("Bearer", bearer()),
-                                                  Accept = "application/json"),
-                       ua)  
-  
-  print(resp$status_code)
-}
-
-
+httr::cache_info(resp)
